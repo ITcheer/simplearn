@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Chatbot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <!-- Add MathJax -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="lesson-history">
+        <h3>Learning Progress</h3>
+        <div id="achievements-list"></div>
+    </div>
+    <div class="main-content">
+        <div id="chat-box">
+            {% if system_message %}
+            <div class="message system">
+                <div class="message-content">
+                    <i class="fas fa-info-circle"></i> {{ system_message }}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        <div class="loading-animation hidden">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+        </div>
+        <div class="input-container">
+            <div class="input-wrapper">
+                <input type="text" id="user-input" placeholder="Send a message...">
+                <button id="send-btn"><i class="fas fa-paper-plane"></i></button>
+            </div>
+            <div class="disclaimer">
+                This is an AI assistant for educational purposes.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById("chat-box");
+        const userInput = document.getElementById("user-input");
+        const sendBtn = document.getElementById("send-btn");
+        const lessonProgress = new Map(); // Store progress for each topic
+
+        // Function to add a message to the chat box
+        function createOptionBubbles(options) {
+            const optionsContainer = document.createElement('div');
+            optionsContainer.className = 'options-container';
+            
+            options.forEach(option => {
+                const bubble = document.createElement('button');
+                bubble.className = 'option-bubble';
+                bubble.textContent = option.trim();
+                bubble.onclick = () => {
+                    // Send the selected option as user message
+                    userInput.value = option.trim();
+                    sendMessage();
+                    // Remove options after selection
+                    optionsContainer.remove();
+                };
+                optionsContainer.appendChild(bubble);
+            });
+            
+            return optionsContainer;
+        }
+
+        function createLessonList(topic, lessons) {
+            return `
+                <div class="lesson-container">
+                    <div class="lesson-header" onclick="toggleLessons(this)">
+                        <h3>${topic}</h3>
+                        <div class="header-right">
+                            <span class="badge">Active</span>
+                            <span class="toggle-icon">▼</span>
+                        </div>
+                    </div>
+                    <ul class="lesson-list">
+                        ${lessons.map((lesson, index) => `
+                            <li class="lesson-item" onclick="selectLesson('${topic}', '${lesson}')">
+                                <span class="lesson-number">${index + 1}</span>
+                                <span class="lesson-title">${lesson}</span>
+                                <span class="lesson-arrow">→</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        function toggleLessons(header) {
+            const container = header.closest('.lesson-container');
+            container.classList.toggle('collapsed');
+            const icon = header.querySelector('.toggle-icon');
+            icon.textContent = container.classList.contains('collapsed') ? '▶' : '▼';
+        }
+
+        function selectLesson(topic, lesson) {
+            // Send the selected lesson to the chat
+            userInput.value = `Tell me about ${lesson} in ${topic}`;
+            sendMessage();
+        }
+
+        function addToHistory(topic, lessons) {
+            // Check if we already have this topic
+            const existingCard = document.querySelector(`.achievement-card[data-topic="${topic}"]`);
+            if (existingCard) {
+                console.log('Topic already exists:', topic);
+                return;
+            }
+
+            console.log('Creating new achievement card:', topic, lessons);
+            const achievementsList = document.getElementById('achievements-list');
+            const achievementCard = document.createElement('div');
+            achievementCard.className = 'achievement-card';
+            achievementCard.dataset.topic = topic;
+            achievementCard.innerHTML = `
+                <div class="achievement-header">
+                    <span class="achievement-topic">${topic}</span>
+                    <span class="achievement-count">0/${lessons.length} completed</span>
+                </div>
+                <div class="achievement-lessons">
+                    ${lessons.map((lesson, index) => `
+                        <div class="achievement-lesson" data-lesson="${lesson}">
+                            <span class="check-mark incomplete">○</span>
+                            <span>${lesson}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            // Add to DOM and initialize progress tracking
+            achievementsList.prepend(achievementCard);
+            lessonProgress.set(topic, {
+                lessons: lessons,
+                completed: new Set(),
+                currentIndex: 0
+            });
+            console.log('Progress initialized:', lessonProgress.get(topic));
+        }
+
+        function markLessonComplete(topic, lesson) {
+            const progress = lessonProgress.get(topic);
+            if (!progress) {
+                console.error('No progress found for topic:', topic);
+                return;
+            }
+
+            // Add to completed set if not already there
+            if (!progress.completed.has(lesson)) {
+                progress.completed.add(lesson);
+                console.log(`Marking ${lesson} complete for ${topic}`);
+                
+                const card = document.querySelector(`.achievement-card[data-topic="${topic}"]`);
+                if (!card) {
+                    console.error('Card not found for topic:', topic);
+                    return;
+                }
+
+                // Update UI
+                const lessonElement = Array.from(card.querySelectorAll('.achievement-lesson'))
+                    .find(el => el.textContent.includes(lesson));
+                    
+                if (lessonElement) {
+                    const checkMark = lessonElement.querySelector('.check-mark');
+                    if (checkMark) {
+                        checkMark.textContent = '✓';
+                        checkMark.classList.remove('incomplete');
+                        checkMark.classList.add('complete');
+                    }
+                }
+
+                // Update count
+                const countElement = card.querySelector('.achievement-count');
+                if (countElement) {
+                    countElement.textContent = `${progress.completed.size}/${progress.lessons.length} completed`;
+                }
+
+                // Update next lesson index
+                progress.currentIndex = Math.min(progress.currentIndex + 1, progress.lessons.length - 1);
+                
+                // Check if all complete
+                if (progress.completed.size === progress.lessons.length) {
+                    card.classList.add('completed');
+                }
+            }
+        }
+
+        function addMessage(role, message) {
+            const messageDiv = document.createElement("div");
+            messageDiv.classList.add("message", role);
+            
+            if (role === 'assistant') {
+                // First check for topic details and create achievement card
+                if (message.includes('Topic Details:') && message.includes('Lessons:')) {
+                    try {
+                        const topicMatch = /Topic Details:\s*(\w+)/i.exec(message);
+                        const lessonsText = message.split('Lessons:')[1];
+                        const lessons = lessonsText
+                            .split('\n')
+                            .filter(line => line.trim().startsWith('-'))
+                            .map(line => line.trim().replace(/^-\s*/, ''))
+                            .filter(Boolean);
+
+                        if (topicMatch && lessons.length > 0) {
+                            const topic = topicMatch[1].trim();
+                            console.log('Creating achievement card for:', topic, lessons);
+                            addToHistory(topic, lessons);
+                        }
+                    } catch (e) {
+                        console.error('Error parsing lesson structure:', e);
+                    }
+                }
+                // Then check for lesson completion with more flexible patterns
+                else if (message.toLowerCase().includes('excellent job') || 
+                         message.toLowerCase().includes('great job') ||
+                         /completed? lesson/i.test(message)) {
+                    try {
+                        // Get the current topic and lesson
+                        for (const [topic, progress] of lessonProgress.entries()) {
+                            const currentLesson = progress.lessons[progress.currentIndex];
+                            if (currentLesson) {
+                                console.log('Marking lesson complete:', currentLesson);
+                                markLessonComplete(topic, currentLesson);
+                                break;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error processing completion:', e);
+                    }
+                }
+            }
+            
+            messageDiv.innerHTML = `<div class="message-content">${message}</div>`;
+            messageDiv.innerHTML += `<div class="timestamp">${new Date().toLocaleTimeString()}</div>`;
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // Helper function to extract completed lesson name
+        function extractCompletedLesson(message) {
+            // Try different patterns to match lesson completion message
+            const patterns = [
+                /completing the (first|second|third|final) lesson/i,
+                /completing "(.*?)"/i,
+                /completing (.*?)!/i
+            ];
+
+            for (const pattern of patterns) {
+                const match = message.match(pattern);
+                if (match) {
+                    // Handle ordinal matches
+                    if (match[1] && ['first', 'second', 'third', 'final'].includes(match[1].toLowerCase())) {
+                        const index = {
+                            'first': 0,
+                            'second': 1,
+                            'third': 2,
+                            'final': -1
+                        }[match[1].toLowerCase()];
+                        
+                        // Get the first topic's lessons (assuming single topic)
+                        const firstTopic = lessonProgress.entries().next().value;
+                        if (firstTopic) {
+                            const [_, progress] = firstTopic;
+                            return index === -1 ? 
+                                progress.lessons[progress.lessons.length - 1] : 
+                                progress.lessons[index];
+                        }
+                    }
+                    return match[1];
+                }
+            }
+            return null;
+        }
+
+        // Helper function to match lesson names flexibly
+        function isLessonMatch(lesson1, lesson2) {
+            // Normalize strings for comparison
+            const normalize = str => str.toLowerCase().replace(/[^a-z0-9]/g, '');
+            return normalize(lesson1).includes(normalize(lesson2)) || 
+                   normalize(lesson2).includes(normalize(lesson1));
+        }
+
+        function confirmLesson(response) {
+            userInput.value = response;
+            sendMessage();
+            // Remove confirmation buttons after selection
+            const confirmBtns = document.querySelectorAll('.lesson-confirmation');
+            confirmBtns.forEach(btn => btn.remove());
+        }
+
+        // Function to send user message to the backend
+        async function sendMessage() {
+            const userMessage = userInput.value.trim();
+            if (userMessage === "") return;
+
+            addMessage("user", userMessage);
+            userInput.value = "";
+
+            document.querySelector('.loading-animation').classList.remove('hidden');
+            
+            try {
+                const response = await fetch("/chat", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ message: userMessage }),
+                });
+
+                const data = await response.json();
+                addMessage(data.role || "assistant", data.response);
+                
+                // Update lesson progress if provided
+                if (data.lesson_progress && data.lesson_progress.current_topic) {
+                    const { current_topic, completed_lessons, total_lessons } = data.lesson_progress;
+                    // Update existing achievement card
+                    const card = document.querySelector(`.achievement-card[data-topic="${current_topic}"]`);
+                    if (card) {
+                        completed_lessons.forEach(lesson => {
+                            const lessonElement = card.querySelector(`[data-lesson="${lesson}"]`);
+                            if (lessonElement) {
+                                const checkMark = lessonElement.querySelector('.check-mark');
+                                checkMark.textContent = '✓';
+                                checkMark.classList.remove('incomplete');
+                                checkMark.classList.add('complete');
+                            }
+                        });
+                        
+                        // Update count
+                        const countElement = card.querySelector('.achievement-count');
+                        countElement.textContent = `${completed_lessons.length}/${total_lessons} completed`;
+                        
+                        // Check if all lessons are complete
+                        if (completed_lessons.length === total_lessons) {
+                            card.classList.add('completed');
+                        }
+                    }
+                }
+                
+                chatBox.scrollTop = chatBox.scrollHeight;
+            } catch (error) {
+                addMessage("system", "Sorry, there was an error processing your request.");
+            } finally {
+                document.querySelector('.loading-animation').classList.add('hidden');
+            }
+        }
+
+        // Event listeners
+        sendBtn.addEventListener("click", sendMessage);
+        userInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") sendMessage();
+        });
+
+        const toggleModeBtn = document.getElementById("toggle-mode-btn");
+        toggleModeBtn.addEventListener("click", () => {
+            document.body.classList.toggle("dark-mode");
+        });
+
+        document.getElementById('clear-chat').addEventListener('click', () => {
+            chatBox.innerHTML = '';
+        });
+    </script>
+</body>
+</html>

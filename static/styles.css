@@ -1,0 +1,529 @@
+:root {
+    --sidebar-width: 260px;
+    --primary-color: #4A90E2;  /* Educational blue */
+    --secondary-color: #F5B041; /* Warm accent color */
+    --background-dark: #2C3E50;
+    --background-light: #F8F9FA;
+    --chat-dark: #34495E;
+    --chat-light: #EBF5FB;
+    --achievement-bg: #f8fafc;
+    --achievement-border: #e2e8f0;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Roboto', sans-serif;
+    background: #ffffff;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Remove or comment out sidebar styles */
+/* .sidebar, .sidebar-header, .sidebar-footer, .new-chat { 
+    display: none; 
+} */
+
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100%;
+    background: #f9f9f9;
+    margin: 0;
+    padding: 0;
+}
+
+/* Center the whole chat box, matching input container width */
+#chat-box {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.message {
+    max-width: 65ch; /* typical ChatGPT width */
+    margin: 1rem 0;
+    line-height: 1.5;
+    word-wrap: break-word;
+    padding: 1.5rem;
+    border-radius: 8px;
+    position: relative;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.message.system {
+    background: #fff9c4;
+    border-left: 4px solid #f5b041;
+    font-style: italic;
+    color: #666;
+    margin: 1rem auto;
+}
+
+.message::before {
+    position: absolute;
+    left: -30px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+}
+
+/* ...existing code... */
+.message.assistant::before {
+    content: none; /* Removes the graduation cap icon */
+    /* color: var(--primary-color); */
+}
+
+.message.user::before {
+    content: "\f007"; /* user icon */
+    color: #666;
+}
+
+.message.user {
+    background: #19c37d; /* ChatGPT-inspired green */
+    color: #fff;
+    margin-left: auto;
+    margin-right: 0;
+    border-radius: 16px 16px 0 16px;
+}
+
+.message.assistant {
+    background: #f7f7f8; /* ChatGPT-inspired gray */
+    margin-left: 0;
+    margin-right: auto;
+    border-radius: 16px 16px 16px 0;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.user {
+    background: var(--background-light);
+}
+
+.assistant {
+    background: var(--chat-light);
+    width: 100%;
+    margin: 0 -2rem;
+    padding: 1.5rem 2rem;
+}
+
+.input-container {
+    padding: 1.5rem;
+    background: var(--background-light);
+    border-top: 1px solid #e5e5e5;
+}
+
+.input-wrapper {
+    max-width: 800px;
+    margin: 0 auto;
+    position: relative;
+}
+
+#user-input {
+    width: 100%;
+    padding: 1rem 3rem 1rem 1rem;
+    border: 1px solid #e5e5e5;
+    border-radius: 0.75rem;
+    box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    font-size: 1rem;
+}
+
+#send-btn {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    cursor: pointer;
+}
+
+.disclaimer {
+    text-align: center;
+    color: #666;
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+}
+
+.dark-mode {
+    background: var(--background-dark);
+    color: white;
+}
+
+.dark-mode .assistant {
+    background: var(--chat-dark);
+}
+
+.dark-mode #user-input {
+    background: #40414f;
+    border-color: #40414f;
+    color: white;
+}
+
+.dark-mode .message {
+    border-bottom: 1px solid #40414f;
+}
+
+.loading-animation {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 1rem;
+}
+
+.loading-animation.hidden {
+    display: none;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    animation: bounce 0.5s infinite alternate;
+}
+
+.dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes bounce {
+    from { transform: translateY(0); }
+    to   { transform: translateY(-10px); }
+}
+
+.options-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.option-bubble {
+    background: white;
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+.option-bubble:hover {
+    background: var(--primary-color);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.dark-mode .option-bubble {
+    background: #40414f;
+    border-color: #666;
+    color: #fff;
+}
+
+.dark-mode .option-bubble:hover {
+    background: #666;
+ 
+    border-color: #888;
+}
+
+.lesson-container {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin: 1rem 0;
+    transition: all 0.3s ease;
+}
+
+.lesson-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
+}
+
+.lesson-header:hover {
+    background-color: #f1f5f9;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.toggle-icon {
+    font-size: 1rem;
+    transition: transform 0.3s ease;
+}
+
+.lesson-container.collapsed .lesson-list {
+    display: none;
+}
+
+.lesson-container.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.lesson-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.lesson-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 0.5rem 0;
+    background: #f8fafc;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.lesson-item:hover {
+    transform: translateX(8px);
+    background: #e2e8f0;
+}
+
+.lesson-arrow {
+    margin-left: auto;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.lesson-item:hover .lesson-arrow {
+    opacity: 1;
+}
+
+.lesson-number {
+    background: var(--primary-color);
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.lesson-title {
+    color: #334155;
+    font-weight: 500;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.dark-mode .lesson-container {
+    background: #1e293b;
+}
+
+.dark-mode .lesson-header:hover {
+    background-color: #2d3748;
+}
+
+.dark-mode .lesson-item {
+    background: #334155;
+}
+
+.dark-mode .lesson-item:hover {
+    background: #475569;
+}
+
+.dark-mode .lesson-title {
+    color: #e2e8f0;
+}
+
+.lesson-history {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    width: 300px;
+    max-height: 80vh;
+    overflow-y: auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    padding: 1rem;
+    z-index: 1000;
+    opacity: 1 !important;  /* Force visibility */
+    display: block !important;  /* Force display */
+}
+
+.achievement-card {
+    background: var(--achievement-bg);
+    border: 1px solid var(--achievement-border);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    opacity: 1 !important;
+    animation: slideIn 0.3s ease-out;
+}
+
+.achievement-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.achievement-header {
+    padding: 0.75rem;
+    background: var(--primary-color);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.achievement-topic {
+    font-weight: 500;
+}
+
+.achievement-count {
+    font-size: 0.875rem;
+    background: rgba(255,255,255,0.2);
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+}
+
+.achievement-lessons {
+    padding: 0.75rem;
+}
+
+.achievement-lesson {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+    font-size: 0.875rem;
+    color: #475569;
+}
+
+.check-mark {
+    color: #22c55e;
+    font-weight: bold;
+}
+
+/* Dark mode support */
+.dark-mode .lesson-history {
+    background: var(--background-dark);
+}
+
+.dark-mode .achievement-card {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.dark-mode .achievement-lesson {
+    color: #e2e8f0;
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+    .lesson-history {
+        width: 250px;
+    }
+}
+
+@media (max-width: 768px) {
+    .lesson-history {
+        position: static;
+        width: 100%;
+        max-width: 800px;
+        margin: 1rem auto;
+    }
+}
+
+/* ...existing code... */
+
+.check-mark.incomplete {
+    color: #94a3b8;
+}
+
+.check-mark.complete {
+    color: #22c55e;
+    animation: checkmark 0.4s ease-in-out;
+}
+
+.achievement-card.completed {
+    border: 2px solid #22c55e;
+}
+
+.achievement-card.completed .achievement-header {
+    background: #22c55e;
+}
+
+@keyframes checkmark {
+    0% { transform: scale(0.5); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* ...rest of existing code... */
+
+.lesson-confirmation {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.confirm-btn {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    border: 1px solid var(--primary-color);
+    background: white;
+    color: var(--primary-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.confirm-btn:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+.dark-mode .confirm-btn {
+    background: #2d3748;
+    color: white;
+}
+
+.dark-mode .confirm-btn:hover {
+    background: var(--primary-color);
+}
