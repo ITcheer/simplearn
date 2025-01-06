@@ -23,7 +23,8 @@
             {% if system_message %}
             <div class="message system">
                 <div class="message-content">
-                    <i class="fas fa-info-circle"></i> {{ system_message }}
+                    <i class="fas fa-robot"></i>
+                    <span>{{ system_message }}</span>
                 </div>
             </div>
             {% endif %}
@@ -35,11 +36,18 @@
         </div>
         <div class="input-container">
             <div class="input-wrapper">
-                <input type="text" id="user-input" placeholder="Send a message...">
-                <button id="send-btn"><i class="fas fa-paper-plane"></i></button>
+                <input 
+                    type="text" 
+                    id="user-input" 
+                    placeholder="Type your message here..."
+                    autocomplete="off"
+                >
+                <button id="send-btn">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
             </div>
             <div class="disclaimer">
-                This is an AI assistant for educational purposes.
+                AI-powered educational assistant
             </div>
         </div>
     </div>
@@ -153,42 +161,42 @@
                 return;
             }
 
-            // Add to completed set if not already there
-            if (!progress.completed.has(lesson)) {
-                progress.completed.add(lesson);
-                console.log(`Marking ${lesson} complete for ${topic}`);
+            // Normalize lesson names for comparison
+            const normalizedLesson = lesson.toLowerCase().trim();
+            const normalizedLessons = progress.lessons.map(l => l.toLowerCase().trim());
+            
+            // Find the index of the lesson
+            const lessonIndex = normalizedLessons.indexOf(normalizedLesson);
+            
+            if (lessonIndex !== -1) {
+                const actualLesson = progress.lessons[lessonIndex];
                 
-                const card = document.querySelector(`.achievement-card[data-topic="${topic}"]`);
-                if (!card) {
-                    console.error('Card not found for topic:', topic);
-                    return;
-                }
-
-                // Update UI
-                const lessonElement = Array.from(card.querySelectorAll('.achievement-lesson'))
-                    .find(el => el.textContent.includes(lesson));
+                if (!progress.completed.has(actualLesson)) {
+                    progress.completed.add(actualLesson);
+                    console.log(`Marking ${actualLesson} complete for ${topic}`);
                     
-                if (lessonElement) {
-                    const checkMark = lessonElement.querySelector('.check-mark');
-                    if (checkMark) {
-                        checkMark.textContent = '✓';
-                        checkMark.classList.remove('incomplete');
-                        checkMark.classList.add('complete');
+                    // Update UI
+                    const card = document.querySelector(`.achievement-card[data-topic="${topic}"]`);
+                    if (card) {
+                        const lessonElements = card.querySelectorAll('.achievement-lesson');
+                        const lessonElement = Array.from(lessonElements)
+                            .find(el => el.textContent.toLowerCase().includes(actualLesson.toLowerCase()));
+                        
+                        if (lessonElement) {
+                            const checkMark = lessonElement.querySelector('.check-mark');
+                            if (checkMark) {
+                                checkMark.textContent = '✓';
+                                checkMark.classList.remove('incomplete');
+                                checkMark.classList.add('complete');
+                            }
+                        }
+
+                        // Update count
+                        const countElement = card.querySelector('.achievement-count');
+                        if (countElement) {
+                            countElement.textContent = `${progress.completed.size}/${progress.lessons.length} completed`;
+                        }
                     }
-                }
-
-                // Update count
-                const countElement = card.querySelector('.achievement-count');
-                if (countElement) {
-                    countElement.textContent = `${progress.completed.size}/${progress.lessons.length} completed`;
-                }
-
-                // Update next lesson index
-                progress.currentIndex = Math.min(progress.currentIndex + 1, progress.lessons.length - 1);
-                
-                // Check if all complete
-                if (progress.completed.size === progress.lessons.length) {
-                    card.classList.add('completed');
                 }
             }
         }
@@ -231,55 +239,52 @@
             messageDiv.classList.add("message", role);
             
             if (role === 'assistant') {
-                // First check for topic details and create achievement card
-                if (message.includes('Topic Details:') && message.includes('Lessons:')) {
+                // Check for lesson completion with more specific patterns
+                if (message.toLowerCase().includes('great job on completing')) {
                     try {
-                        const topicMatch = /Topic Details:\s*(\w+)/i.exec(message);
-                        const lessonsText = message.split('Lessons:')[1];
-                        const lessons = lessonsText
-                            .split('\n')
-                            .filter(line => line.trim().startsWith('-'))
-                            .map(line => line.trim().replace(/^-\s*/, ''))
-                            .filter(Boolean);
-
-                        if (topicMatch && lessons.length > 0) {
-                            const topic = topicMatch[1].trim();
-                            console.log('Creating achievement card for:', topic, lessons);
-                            addToHistory(topic, lessons);
-                        }
-                    } catch (e) {
-                        console.error('Error parsing lesson structure:', e);
-                    }
-                }
-                // Then check for lesson completion with more flexible patterns
-                else if (message.toLowerCase().includes('excellent job') || 
-                         message.toLowerCase().includes('great job') ||
-                         /completed? lesson/i.test(message)) {
-                    try {
-                        // Get the current topic and lesson
-                        for (const [topic, progress] of lessonProgress.entries()) {
-                            const currentLesson = progress.lessons[progress.currentIndex];
-                            if (currentLesson) {
-                                console.log('Marking lesson complete:', currentLesson);
-                                markLessonComplete(topic, currentLesson);
-                                break;
+                        // Extract the completed lesson name
+                        const lessonMatch = message.match(/great job on completing (.*?)!/i);
+                        if (lessonMatch && lessonMatch[1]) {
+                            const completedLesson = lessonMatch[1].trim();
+                            
+                            // Find and mark the lesson as complete
+                            for (const [topic, progress] of lessonProgress.entries()) {
+                                const matchingLesson = progress.lessons.find(
+                                    lesson => isLessonMatch(lesson, completedLesson)
+                                );
+                                if (matchingLesson) {
+                                    console.log('Marking lesson complete:', matchingLesson);
+                                    markLessonComplete(topic, matchingLesson);
+                                    break;
+                                }
                             }
                         }
                     } catch (e) {
                         console.error('Error processing completion:', e);
                     }
                 }
+                
+                // Check for new topic initialization
+                if (message.includes('Topic Details:') && message.includes('Lessons:')) {
+                    try {
+                        const topicMatch = /Topic Details:\s*(\w+)/i.exec(message);
+                        const lessonsMatch = message.match(/Lessons:([\s\S]*?)(?=\n\n|$)/);
+                        
+                        if (topicMatch && lessonsMatch) {
+                            const topic = topicMatch[1].trim();
+                            const lessons = lessonsMatch[1]
+                                .split('\n')
+                                .filter(line => line.trim().startsWith('-'))
+                                .map(line => line.trim().replace(/^-\s*/, ''))
+                                .filter(Boolean);
 
-                // Try extracting "completed the [Lesson]" from AI message
-                const completedLesson = extractLessonName(message);
-                if (completedLesson) {
-                    for (const [topic, progress] of lessonProgress.entries()) {
-                        // Find matching lesson by name
-                        const foundLesson = progress.lessons.find(ln => ln.toLowerCase() === completedLesson.toLowerCase());
-                        if (foundLesson) {
-                            markLessonComplete(topic, foundLesson);
-                            break;
+                            if (lessons.length > 0) {
+                                console.log('Creating achievement card for:', topic, lessons);
+                                addToHistory(topic, lessons);
+                            }
                         }
+                    } catch (e) {
+                        console.error('Error parsing lesson structure:', e);
                     }
                 }
             }
@@ -287,13 +292,9 @@
             messageDiv.innerHTML = `<div class="message-content">${message}</div>`;
             messageDiv.innerHTML += `<div class="timestamp">${new Date().toLocaleTimeString()}</div>`;
             
-            // Add confirmation buttons if AI prompt suggests starting a lesson
-            if (
-                message.includes("Say 'yes' when you're ready") ||
-                message.includes("Say 'yes' when ready") ||
-                message.toLowerCase().includes("shall we begin learning about") ||
-                message.toLowerCase().includes("ready to start")
-            ) {
+            // Add confirmation buttons if needed
+            if (message.toLowerCase().includes("shall we begin") || 
+                message.toLowerCase().includes("ready to start")) {
                 const buttonsContainer = createConfirmationButtons(message);
                 messageDiv.appendChild(buttonsContainer);
             }
@@ -354,6 +355,15 @@
             confirmBtns.forEach(btn => btn.remove());
         }
 
+        // Function to handle user responses to math problems
+        function handleMathProblemResponse(userAnswer, correctAnswer) {
+            if (parseInt(userAnswer) === correctAnswer) {
+                return "Great job on completing the problem!";
+            } else {
+                return `I'm sorry, but that's not correct. The correct answer is ${correctAnswer}. Great effort, though!`;
+            }
+        }
+
         // Function to send user message to the backend
         async function sendMessage() {
             const userMessage = userInput.value.trim();
@@ -374,33 +384,14 @@
                 });
 
                 const data = await response.json();
-                addMessage(data.role || "assistant", data.response);
                 
-                // Update lesson progress if provided
-                if (data.lesson_progress && data.lesson_progress.current_topic) {
-                    const { current_topic, completed_lessons, total_lessons } = data.lesson_progress;
-                    // Update existing achievement card
-                    const card = document.querySelector(`.achievement-card[data-topic="${current_topic}"]`);
-                    if (card) {
-                        completed_lessons.forEach(lesson => {
-                            const lessonElement = card.querySelector(`[data-lesson="${lesson}"]`);
-                            if (lessonElement) {
-                                const checkMark = lessonElement.querySelector('.check-mark');
-                                checkMark.textContent = '✓';
-                                checkMark.classList.remove('incomplete');
-                                checkMark.classList.add('complete');
-                            }
-                        });
-                        
-                        // Update count
-                        const countElement = card.querySelector('.achievement-count');
-                        countElement.textContent = `${completed_lessons.length}/${total_lessons} completed`;
-                        
-                        // Check if all lessons are complete
-                        if (completed_lessons.length === total_lessons) {
-                            card.classList.add('completed');
-                        }
-                    }
+                // Example: Check if the response is a math problem
+                if (data.isMathProblem) {
+                    const correctAnswer = data.correctAnswer; // Assume this is provided by the backend
+                    const feedback = handleMathProblemResponse(userMessage, correctAnswer);
+                    addMessage("assistant", feedback);
+                } else {
+                    addMessage(data.role || "assistant", data.response);
                 }
                 
                 chatBox.scrollTop = chatBox.scrollHeight;

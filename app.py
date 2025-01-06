@@ -93,6 +93,29 @@ def parse_lesson_data(response):
         log_event(f"Error parsing lesson data: {e}", level='error')
         return None
 
+def validate_math_answer(question, user_answer):
+    """Validate mathematical answers from user input"""
+    try:
+        # Extract numbers from the question (e.g., "What is 9 + 4?")
+        numbers = re.findall(r'\d+', question)
+        operator = re.findall(r'[\+\-\*\/]', question)
+        
+        if len(numbers) == 2 and operator:
+            num1, num2 = map(int, numbers)
+            expected = None
+            
+            if '+' in operator:
+                expected = num1 + num2
+            elif '-' in operator:
+                expected = num1 - num2
+            elif '*' in operator:
+                expected = num1 * num2
+                
+            return int(user_answer) == expected
+    except:
+        return False
+    return False
+
 @app.route("/")
 def home():
     # Send initial system message to frontend
@@ -164,6 +187,19 @@ def chat():
             session['state'] = CONVERSATION_STATES['LESSON_IN_PROGRESS']
     
     elif session['state'] == CONVERSATION_STATES['LESSON_IN_PROGRESS']:
+        # Check if there's a math question in the previous message
+        prev_message = chat_prompt[-2]['content'] if len(chat_prompt) > 1 else ""
+        if "what is" in prev_message.lower() and any(op in prev_message for op in ['+', '-', '*']):
+            # Validate the answer before marking as complete
+            if not validate_math_answer(prev_message, user_message):
+                ai_response = "That's not correct. Let's try again. " + prev_message
+                chat_prompt.append({"role": "assistant", "content": ai_response})
+                return jsonify({
+                    "response": ai_response,
+                    "role": "assistant",
+                    "state": session['state']
+                })
+
         if "great job on completing" in ai_response.lower():
             current_lesson = session['lessons'][session['current_lesson_index']]
             session['completed_lessons'].add(current_lesson)

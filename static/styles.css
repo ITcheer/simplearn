@@ -1,22 +1,31 @@
 :root {
     --sidebar-width: 260px;
-    --primary-color: #4A90E2;  /* Educational blue */
-    --secondary-color: #F5B041; /* Warm accent color */
+    --primary-color: #2563eb;  /* Modern blue */
+    --secondary-color: #3b82f6;
     --background-dark: #2C3E50;
-    --background-light: #F8F9FA;
+    --background-light: #ffffff;
     --chat-dark: #34495E;
     --chat-light: #EBF5FB;
     --achievement-bg: #f8fafc;
     --achievement-border: #e2e8f0;
+    --text-primary: #1f2937;
+    --text-secondary: #6b7280;
+    --success-color: #10b981;
+    --border-radius: 12px;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    --transition: all 0.2s ease;
 }
 
 body {
     margin: 0;
     padding: 0;
     font-family: 'Roboto', sans-serif;
-    background: #ffffff;
+    background: #f8fafc;
+    color: var(--text-primary);
     height: 100vh;
     overflow: hidden;
+    line-height: 1.5;
 }
 
 /* Remove or comment out sidebar styles */
@@ -42,17 +51,16 @@ body {
     padding: 1rem;
     max-width: 800px;
     margin: 0 auto;
+    padding-bottom: 8rem; /* add extra space to prevent overlap */
 }
 
 .message {
-    max-width: 65ch; /* typical ChatGPT width */
-    margin: 1rem 0;
-    line-height: 1.5;
-    word-wrap: break-word;
-    padding: 1.5rem;
-    border-radius: 8px;
-    position: relative;
-    animation: fadeIn 0.3s ease-in;
+    max-width: 85%;
+    margin: 1.5rem auto;
+    padding: 1.25rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
 }
 
 .message.system {
@@ -61,6 +69,9 @@ body {
     font-style: italic;
     color: #666;
     margin: 1rem auto;
+    margin-right: auto;
+    margin-left: 0;
+    padding: 1rem;
 }
 
 .message::before {
@@ -84,16 +95,16 @@ body {
 }
 
 .message.user {
-    background: #19c37d; /* ChatGPT-inspired green */
-    color: #fff;
+    background: var(--primary-color);
+    color: white;
     margin-left: auto;
     margin-right: 0;
     border-radius: 16px 16px 0 16px;
 }
 
 .message.assistant {
-    background: #f7f7f8; /* ChatGPT-inspired gray */
-    margin-left: 0;
+    background: white;
+    border: 1px solid #e5e7eb;
     margin-right: auto;
     border-radius: 16px 16px 16px 0;
 }
@@ -115,9 +126,14 @@ body {
 }
 
 .input-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
     padding: 1.5rem;
-    background: var(--background-light);
-    border-top: 1px solid #e5e5e5;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid #e5e7eb;
 }
 
 .input-wrapper {
@@ -128,22 +144,40 @@ body {
 
 #user-input {
     width: 100%;
-    padding: 1rem 3rem 1rem 1rem;
-    border: 1px solid #e5e5e5;
-    border-radius: 0.75rem;
-    box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    padding: 1rem 3.5rem 1rem 1.5rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 999px;
     font-size: 1rem;
+    transition: var(--transition);
+    box-shadow: var(--shadow-sm);
+}
+
+#user-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 #send-btn {
     position: absolute;
-    right: 0.5rem;
+    right: 0.75rem;
     top: 50%;
     transform: translateY(-50%);
-    background: none;
-    border: none;
-    color: var(--primary-color);
+    background: var(--primary-color);
+    color: white;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
+    transition: var(--transition);
+}
+
+#send-btn:hover {
+    background: var(--secondary-color);
+    transform: translateY(-50%) scale(1.05);
 }
 
 .disclaimer {
@@ -175,7 +209,7 @@ body {
 .loading-animation {
     display: flex;
     justify-content: center;
-    gap: 8px;
+    gap: 0.5rem;
     padding: 1rem;
 }
 
@@ -184,8 +218,8 @@ body {
 }
 
 .dot {
-    width: 8px;
-    height: 8px;
+    width: 0.5rem;
+    height: 0.5rem;
     background: var(--primary-color);
     border-radius: 50%;
     animation: bounce 0.5s infinite alternate;
@@ -368,9 +402,10 @@ body {
     width: 300px;
     max-height: 80vh;
     overflow-y: auto;
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-md);
     padding: 1rem;
     z-index: 1000;
     opacity: 1 !important;  /* Force visibility */
@@ -378,14 +413,11 @@ body {
 }
 
 .achievement-card {
-    background: var(--achievement-bg);
-    border: 1px solid var(--achievement-border);
-    border-radius: 8px;
-    margin-bottom: 1rem;
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
     overflow: hidden;
-    transition: all 0.2s ease;
-    opacity: 1 !important;
-    animation: slideIn 0.3s ease-out;
+    transition: var(--transition);
 }
 
 .achievement-card:hover {
@@ -394,12 +426,8 @@ body {
 }
 
 .achievement-header {
-    padding: 0.75rem;
     background: var(--primary-color);
-    color: white;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    padding: 1rem;
 }
 
 .achievement-topic {
@@ -421,9 +449,13 @@ body {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.5rem 0;
-    font-size: 0.875rem;
-    color: #475569;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    transition: var(--transition);
+}
+
+.achievement-lesson:hover {
+    background: #f8fafc;
 }
 
 .check-mark {
@@ -505,13 +537,10 @@ body {
 }
 
 .confirm-btn {
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    border: 1px solid var(--primary-color);
-    background: white;
-    color: var(--primary-color);
-    cursor: pointer;
-    transition: all 0.2s ease;
+    padding: 0.75rem 1.5rem;
+    border-radius: 999px;
+    font-weight: 500;
+    transition: var(--transition);
 }
 
 .confirm-btn:hover {
@@ -534,15 +563,14 @@ body {
     display: flex;
     gap: 1rem;
     margin-top: 1rem;
+    justify-content: center;
 }
 
 .confirm-btn {
     padding: 0.75rem 1.5rem;
-    border-radius: 20px;
-    border: none;
-    cursor: pointer;
+    border-radius: 999px;
     font-weight: 500;
-    transition: all 0.2s ease;
+    transition: var(--transition);
 }
 
 .yes-btn {
@@ -551,8 +579,8 @@ body {
 }
 
 .no-btn {
-    background: #e5e7eb;
-    color: #4b5563;
+    background: #f3f4f6;
+    color: var(--text-secondary);
 }
 
 .confirm-btn:hover {
