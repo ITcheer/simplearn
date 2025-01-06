@@ -201,7 +201,7 @@
             yesButton.className = 'confirm-btn yes-btn';
             yesButton.textContent = 'Ready to Start';
             yesButton.onclick = () => {
-                userInput.value = 'yes';
+                userInput.value = "Sure, let's proceed.";
                 sendMessage();
                 buttonsContainer.remove();
             };
@@ -218,6 +218,12 @@
             buttonsContainer.appendChild(yesButton);
             buttonsContainer.appendChild(noButton);
             return buttonsContainer;
+        }
+
+        function extractLessonName(message) {
+            const pattern = /completed the ([\w\s]+)/i;
+            const match = message.match(pattern);
+            return match ? match[1].trim() : null;
         }
 
         function addMessage(role, message) {
@@ -263,13 +269,31 @@
                         console.error('Error processing completion:', e);
                     }
                 }
+
+                // Try extracting "completed the [Lesson]" from AI message
+                const completedLesson = extractLessonName(message);
+                if (completedLesson) {
+                    for (const [topic, progress] of lessonProgress.entries()) {
+                        // Find matching lesson by name
+                        const foundLesson = progress.lessons.find(ln => ln.toLowerCase() === completedLesson.toLowerCase());
+                        if (foundLesson) {
+                            markLessonComplete(topic, foundLesson);
+                            break;
+                        }
+                    }
+                }
             }
             
             messageDiv.innerHTML = `<div class="message-content">${message}</div>`;
             messageDiv.innerHTML += `<div class="timestamp">${new Date().toLocaleTimeString()}</div>`;
             
-            // Add confirmation buttons if message contains "Say 'yes' when you're ready"
-            if (message.includes("Say 'yes' when you're ready") || message.includes("Say 'yes' when ready")) {
+            // Add confirmation buttons if AI prompt suggests starting a lesson
+            if (
+                message.includes("Say 'yes' when you're ready") ||
+                message.includes("Say 'yes' when ready") ||
+                message.toLowerCase().includes("shall we begin learning about") ||
+                message.toLowerCase().includes("ready to start")
+            ) {
                 const buttonsContainer = createConfirmationButtons(message);
                 messageDiv.appendChild(buttonsContainer);
             }

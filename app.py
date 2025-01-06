@@ -3,6 +3,7 @@ import os
 import base64
 import re
 from openai import AzureOpenAI # type: ignore
+from logger import log_event
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key_here'  # Add this for session management
@@ -81,15 +82,15 @@ def parse_lesson_data(response):
             lesson_matches = re.findall(r'-\s*(?:Lesson \d+:)?\s*([^\n]+)', lessons_section.group(1))
             lessons = [lesson.strip() for lesson in lesson_matches]
         
-        print("Parsed topic:", topic)  # Debug print
-        print("Parsed lessons:", lessons)  # Debug print
+        log_event(f"Parsed topic: {topic}")
+        log_event(f"Parsed lessons: {lessons}")
         
         return {
             "topic": topic,
             "lessons": lessons
         }
     except Exception as e:
-        print(f"Error parsing lesson data: {e}")
+        log_event(f"Error parsing lesson data: {e}", level='error')
         return None
 
 @app.route("/")
@@ -155,7 +156,11 @@ def chat():
                 ai_response = f"Shall we begin learning about {session['lessons'][0]}? Say 'yes' when you're ready."
     
     elif session['state'] == CONVERSATION_STATES['LESSONS_GENERATED']:
-        if user_message.lower() == 'yes':
+        if user_message.lower() in [
+            'yes',
+            "sure, let's proceed.",
+            "let's proceed to the next chapter..."
+        ]:
             session['state'] = CONVERSATION_STATES['LESSON_IN_PROGRESS']
     
     elif session['state'] == CONVERSATION_STATES['LESSON_IN_PROGRESS']:
