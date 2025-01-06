@@ -193,6 +193,33 @@
             }
         }
 
+        function createConfirmationButtons(messageText) {
+            const buttonsContainer = document.createElement('div');
+            buttonsContainer.className = 'confirmation-buttons';
+            
+            const yesButton = document.createElement('button');
+            yesButton.className = 'confirm-btn yes-btn';
+            yesButton.textContent = 'Ready to Start';
+            yesButton.onclick = () => {
+                userInput.value = 'yes';
+                sendMessage();
+                buttonsContainer.remove();
+            };
+            
+            const noButton = document.createElement('button');
+            noButton.className = 'confirm-btn no-btn';
+            noButton.textContent = 'Not Yet';
+            noButton.onclick = () => {
+                userInput.value = 'no';
+                sendMessage();
+                buttonsContainer.remove();
+            };
+            
+            buttonsContainer.appendChild(yesButton);
+            buttonsContainer.appendChild(noButton);
+            return buttonsContainer;
+        }
+
         function addMessage(role, message) {
             const messageDiv = document.createElement("div");
             messageDiv.classList.add("message", role);
@@ -240,6 +267,13 @@
             
             messageDiv.innerHTML = `<div class="message-content">${message}</div>`;
             messageDiv.innerHTML += `<div class="timestamp">${new Date().toLocaleTimeString()}</div>`;
+            
+            // Add confirmation buttons if message contains "Say 'yes' when you're ready"
+            if (message.includes("Say 'yes' when you're ready") || message.includes("Say 'yes' when ready")) {
+                const buttonsContainer = createConfirmationButtons(message);
+                messageDiv.appendChild(buttonsContainer);
+            }
+            
             chatBox.appendChild(messageDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
         }

@@ -36,7 +36,7 @@ chat_prompt = [
                 "type": "text",
                 "text": """You are an intelligent and helpful educational assistant. Follow these steps strictly:
 
-1. When user says "Let's start," ask ONLY: "What topic would you like to learn about today?"
+1. When user greets with any greeting (like hi, hello, hey, etc.), ask ONLY: "What topic would you like to learn about today?"
    Wait for topic response.
 
 2. After receiving topic, ask ONLY: "What grade are you in?"
@@ -49,7 +49,7 @@ chat_prompt = [
    - [Lesson 2]
    - [Lesson 3]
 
-   Then immediately ask: "Shall we begin learning about [Lesson 1]? Say 'yes' when you're ready."
+   Then immediately ask: "Shall we begin learning about [Lesson 1]?"
 
 4. For each lesson:
    - Wait for user's confirmation
@@ -57,7 +57,7 @@ chat_prompt = [
    - Ask a simple question to check understanding
    - Wait for user's response
    - If response shows understanding, say exactly: "Great job on completing [Current Lesson]!"
-   - Then ask: "Ready to start [Next Lesson]? Say 'yes' when ready."
+   - Then ask: "Ready to start [Next Lesson]?"
 
 Remember: Format the topic and lessons structure EXACTLY as shown above."""
             }
@@ -112,7 +112,7 @@ def chat():
         session['completed_lessons'] = set()
     
     # Reset for new conversation
-    if user_message.lower() == "let's start":
+    if session['state'] == CONVERSATION_STATES['INITIAL'] and re.match(r'^(hi|hello|hey|let\'s start|start|begin)', user_message.lower()):
         session.clear()
         session['state'] = CONVERSATION_STATES['INITIAL']
         chat_prompt.clear()
@@ -185,6 +185,7 @@ def chat():
             "total_lessons": len(session.get('lessons', []))
         }
     })
+
 #okay new head
 if __name__ == "__main__":
     app.run(debug=True)

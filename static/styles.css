@@ -527,3 +527,45 @@ body {
 .dark-mode .confirm-btn:hover {
     background: var(--primary-color);
 }
+
+/* ...existing code... */
+
+.confirmation-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.confirm-btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 20px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.yes-btn {
+    background: var(--primary-color);
+    color: white;
+}
+
+.no-btn {
+    background: #e5e7eb;
+    color: #4b5563;
+}
+
+.confirm-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.yes-btn:hover {
+    background: #3982d7;
+}
+
+.no-btn:hover {
+    background: #d1d5db;
+}
+
+/* ...existing code... */
