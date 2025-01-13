@@ -1,12 +1,11 @@
 from flask import Flask, render_template, request, jsonify, session
 import os
-import base64
 import re
 from openai import AzureOpenAI # type: ignore
-from logger import log_event
+from prompt_engineering import PromptEngineering
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key_here'  # Add this for session management
+app.secret_key = 'your_secret_key_here'
 
 # Add more detailed conversation states
 CONVERSATION_STATES = {
@@ -15,7 +14,9 @@ CONVERSATION_STATES = {
     'GRADE_REQUESTED': 2,
     'LESSONS_GENERATED': 3,
     'LESSON_IN_PROGRESS': 4,
-    'LESSON_COMPLETING': 5
+    'LESSON_COMPLETING': 5,
+    'QUESTION_ASKED': 6,
+    'ANSWER_RECEIVED': 7
 }
 
 endpoint = os.getenv("https://azureopened.openai.azure.com/", "https://azureopened.openai.azure.com/")  
@@ -28,106 +29,20 @@ client = AzureOpenAI(
     api_version="2024-05-01-preview",
 )
 
-# System prompt for the AI
-chat_prompt = [
-    {
-        "role": "system",
-        "content": [
-            {
-                "type": "text",
-                "text": """You are an intelligent and helpful educational assistant. Follow these steps strictly:
-
-1. When user greets with any greeting (like hi, hello, hey, etc.), ask ONLY: "What topic would you like to learn about today?"
-   Wait for topic response.
-
-2. After receiving topic, ask ONLY: "What grade are you in?"
-   Wait for grade response.
-
-3. After receiving both topic and grade, ONCE generate the lesson structure EXACTLY in this format:
-   Topic Details: [topic_name]
-   Lessons:
-   - [Lesson 1]
-   - [Lesson 2]
-   - [Lesson 3]
-
-   Then immediately ask: "Shall we begin learning about [Lesson 1]?"
-
-4. For each lesson:
-   - Wait for user's confirmation
-   - Provide a brief introduction
-   - Ask a simple question to check understanding
-   - Wait for user's response
-   - If response shows understanding, say exactly: "Great job on completing [Current Lesson]!"
-   - Then ask: "Ready to start [Next Lesson]?"
-
-Remember: Format the topic and lessons structure EXACTLY as shown above."""
-            }
-        ]
-    }
-]
-
-def parse_lesson_data(response):
-    try:
-        # Extract topic details
-        topic_match = re.search(r'topic_details:\s*([^\n]+)', response)
-        topic = topic_match.group(1).strip() if topic_match else "Unknown Topic"
-        
-        # Extract lessons using a more flexible pattern
-        # This will match both "- Lesson X: Text" and "- Text" formats
-        lessons = []
-        # Find the lessons section
-        lessons_section = re.search(r'lessons:(.*?)(?=\n\n|$)', response, re.DOTALL)
-        if lessons_section:
-            # Extract all bullet points after "lessons:"
-            lesson_matches = re.findall(r'-\s*(?:Lesson \d+:)?\s*([^\n]+)', lessons_section.group(1))
-            lessons = [lesson.strip() for lesson in lesson_matches]
-        
-        log_event(f"Parsed topic: {topic}")
-        log_event(f"Parsed lessons: {lessons}")
-        
-        return {
-            "topic": topic,
-            "lessons": lessons
-        }
-    except Exception as e:
-        log_event(f"Error parsing lesson data: {e}", level='error')
-        return None
-
-def validate_math_answer(question, user_answer):
-    """Validate mathematical answers from user input"""
-    try:
-        # Extract numbers from the question (e.g., "What is 9 + 4?")
-        numbers = re.findall(r'\d+', question)
-        operator = re.findall(r'[\+\-\*\/]', question)
-        
-        if len(numbers) == 2 and operator:
-            num1, num2 = map(int, numbers)
-            expected = None
-            
-            if '+' in operator:
-                expected = num1 + num2
-            elif '-' in operator:
-                expected = num1 - num2
-            elif '*' in operator:
-                expected = num1 * num2
-                
-            return int(user_answer) == expected
-    except:
-        return False
-    return False
+# Initialize prompt engineering
+prompt_engine = PromptEngineering()
 
 @app.route("/")
 def home():
-    # Send initial system message to frontend
     initial_message = "I'm your educational assistant. I'll help guide you through problems rather than giving direct answers. This helps you learn better! Ask me anything."
     return render_template("index.html", system_message=initial_message)
 
 @app.route("/chat", methods=["POST"])
 def chat():
     user_message = request.json["message"]
+    answer_option = request.json.get("answer_option")  # New field for multiple choice answers
     lesson_data = None
     
-    # Initialize or get session data
     if 'state' not in session:
         session['state'] = CONVERSATION_STATES['INITIAL']
         session['current_topic'] = None
@@ -135,19 +50,33 @@ def chat():
         session['lessons'] = []
         session['completed_lessons'] = set()
     
-    # Reset for new conversation
     if session['state'] == CONVERSATION_STATES['INITIAL'] and re.match(r'^(hi|hello|hey|let\'s start|start|begin)', user_message.lower()):
         session.clear()
         session['state'] = CONVERSATION_STATES['INITIAL']
-        chat_prompt.clear()
-        chat_prompt.append({"role": "system", "content": chat_prompt[0]["content"]})
+        prompt_engine.clear_conversation()
     
-    chat_prompt.append({"role": "user", "content": user_message})
+    prompt_engine.add_message("user", user_message)
     
-    # Generate AI response
+    # Handle answer option if provided
+    if answer_option and session.get('current_question'):
+        current_question = session['current_question']
+        is_correct = prompt_engine.validate_answer(current_question, answer_option)
+        ai_response = prompt_engine.generate_question_feedback(is_correct, current_question)
+        session['current_question'] = None  # Clear the current question
+        session['state'] = CONVERSATION_STATES['LESSON_IN_PROGRESS']
+        
+        prompt_engine.add_message("user", f"Selected option {answer_option}")
+        prompt_engine.add_message("assistant", ai_response)
+        
+        return jsonify({
+            "response": ai_response,
+            "role": "assistant",
+            "state": session['state']
+        })
+
     completion = client.chat.completions.create(
         model=deployment,
-        messages=chat_prompt,
+        messages=prompt_engine.get_conversation_history(),
         max_tokens=500,
         temperature=0.7,
         top_p=0.95,
@@ -158,7 +87,6 @@ def chat():
     )
     
     ai_response = completion.choices[0].message.content
-    role_returned = completion.choices[0].message.role
     
     # State machine logic
     if session['state'] == CONVERSATION_STATES['INITIAL'] and "what topic" in ai_response.lower():
@@ -167,33 +95,26 @@ def chat():
     elif session['state'] == CONVERSATION_STATES['TOPIC_REQUESTED'] and "what grade" in ai_response.lower():
         session['state'] = CONVERSATION_STATES['GRADE_REQUESTED']
     
-    elif session['state'] == CONVERSATION_STATES['GRADE_REQUESTED'] and "topic_details:" in ai_response:
-        if not session.get('current_topic'):  # Only parse if not already done
-            lesson_data = parse_lesson_data(ai_response)
+    elif session['state'] == CONVERSATION_STATES['GRADE_REQUESTED'] and "topic details:" in ai_response.lower():
+        if not session.get('current_topic'):
+            lesson_data = prompt_engine.parse_lesson_data(ai_response)
             if lesson_data:
                 session['current_topic'] = lesson_data['topic']
                 session['lessons'] = lesson_data['lessons']
                 session['current_lesson_index'] = 0
                 session['state'] = CONVERSATION_STATES['LESSONS_GENERATED']
-                # Modify response to immediately ask about first lesson
                 ai_response = f"Shall we begin learning about {session['lessons'][0]}? Say 'yes' when you're ready."
     
     elif session['state'] == CONVERSATION_STATES['LESSONS_GENERATED']:
-        if user_message.lower() in [
-            'yes',
-            "sure, let's proceed.",
-            "let's proceed to the next chapter..."
-        ]:
+        if user_message.lower() in ['yes', "sure, let's proceed.", "let's proceed to the next chapter..."]:
             session['state'] = CONVERSATION_STATES['LESSON_IN_PROGRESS']
     
     elif session['state'] == CONVERSATION_STATES['LESSON_IN_PROGRESS']:
-        # Check if there's a math question in the previous message
-        prev_message = chat_prompt[-2]['content'] if len(chat_prompt) > 1 else ""
+        prev_message = prompt_engine.get_conversation_history()[-2]['content'] if len(prompt_engine.get_conversation_history()) > 1 else ""
         if "what is" in prev_message.lower() and any(op in prev_message for op in ['+', '-', '*']):
-            # Validate the answer before marking as complete
-            if not validate_math_answer(prev_message, user_message):
+            if not prompt_engine.validate_math_answer(prev_message, user_message):
                 ai_response = "That's not correct. Let's try again. " + prev_message
-                chat_prompt.append({"role": "assistant", "content": ai_response})
+                prompt_engine.add_message("assistant", ai_response)
                 return jsonify({
                     "response": ai_response,
                     "role": "assistant",
@@ -204,19 +125,44 @@ def chat():
             current_lesson = session['lessons'][session['current_lesson_index']]
             session['completed_lessons'].add(current_lesson)
             
-            # Move to next lesson
             session['current_lesson_index'] += 1
             if session['current_lesson_index'] < len(session['lessons']):
                 next_lesson = session['lessons'][session['current_lesson_index']]
-                ai_response = f"Great job on completing {current_lesson}! Ready to start {next_lesson}? Say 'yes' when ready."
+                ai_response = prompt_engine.generate_lesson_progress_message(current_lesson, next_lesson)
                 session['state'] = CONVERSATION_STATES['LESSONS_GENERATED']
             else:
-                ai_response = f"Congratulations! You've completed all lessons on {session['current_topic']}! Would you like to start a new topic?"
+                ai_response = prompt_engine.generate_completion_message(session['current_topic'])
                 session['state'] = CONVERSATION_STATES['INITIAL']
+        else:
+            current_topic = session['current_topic']
+            current_lesson = session['lessons'][session['current_lesson_index']]
+            
+            # Generate question
+            question_prompt = prompt_engine.generate_question_prompt(current_topic, current_lesson)
+            question_completion = client.chat.completions.create(
+                model=deployment,
+                messages=[{"role": "user", "content": question_prompt}],
+                max_tokens=500,
+                temperature=0.7
+            )
+            
+            question_response = question_completion.choices[0].message.content
+            question_data = prompt_engine.parse_question_response(question_response)
+            
+            if question_data:
+                session['current_question'] = question_data
+                session['state'] = CONVERSATION_STATES['QUESTION_ASKED']
+                
+                return jsonify({
+                    "response": ai_response,
+                    "question": question_data,
+                    "role": "assistant",
+                    "state": session['state']
+                })
     
-    chat_prompt.append({"role": "assistant", "content": ai_response})
+    prompt_engine.add_message("assistant", ai_response)
     
-    return jsonify({
+    response_data = {
         "response": ai_response,
         "role": "assistant",
         "state": session['state'],
@@ -225,8 +171,13 @@ def chat():
             "completed_lessons": list(session.get('completed_lessons', set())),
             "total_lessons": len(session.get('lessons', []))
         }
-    })
+    }
+    
+    # Add current question if it exists
+    if session.get('current_question'):
+        response_data["question"] = session['current_question']
+    
+    return jsonify(response_data)
 
-#okay new head
 if __name__ == "__main__":
     app.run(debug=True)

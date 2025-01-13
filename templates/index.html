@@ -12,6 +12,37 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .option-button {
+            padding: 10px 20px;
+            border: 2px solid #007bff;
+            background-color: white;
+            color: #007bff;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.3s;
+        }
+
+        .option-button:hover {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .question-container {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+    </style>
 </head>
 <body>
     <div class="lesson-history">
@@ -400,6 +431,61 @@
             } finally {
                 document.querySelector('.loading-animation').classList.add('hidden');
             }
+        }
+
+        function displayMessage(message, isUser = false) {
+            const chatBox = document.getElementById('chat-box');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = isUser ? 'user-message' : 'assistant-message';
+            
+            if (message.question) {
+                // Create question container
+                const questionContainer = document.createElement('div');
+                questionContainer.className = 'question-container';
+                
+                // Add question text
+                const questionText = document.createElement('p');
+                questionText.textContent = message.question.question;
+                questionContainer.appendChild(questionText);
+                
+                // Add options as buttons
+                const optionsContainer = document.createElement('div');
+                optionsContainer.className = 'options-container';
+                
+                Object.entries(message.question.options).forEach(([key, value]) => {
+                    const button = document.createElement('button');
+                    button.className = 'option-button';
+                    button.textContent = `${key}) ${value}`;
+                    button.onclick = () => submitAnswer(key);
+                    optionsContainer.appendChild(button);
+                });
+                
+                questionContainer.appendChild(optionsContainer);
+                messageDiv.appendChild(questionContainer);
+            } else {
+                messageDiv.textContent = message.response || message;
+            }
+            
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function submitAnswer(option) {
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message: '',
+                    answer_option: option
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayMessage(data);
+            })
+            .catch(error => console.error('Error:', error));
         }
 
         // Event listeners
